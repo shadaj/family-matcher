@@ -51,10 +51,16 @@ teaching_section = [[model.add_var(var_type=BINARY) for t in all_times] for m in
 for m in range(len(mentors)):
   model += xsum(teaching_section[m][t] for t in range(len(all_times))) == 1
 
-worst_allowed_section_rating = 1 # everyone loves their section
+def section_rating_for_mentor(m):
+  return xsum(
+    teaching_section[m][t] * mentors[m]["times"][all_times[t]]
+    for t in range(len(all_times))
+  )
+
+worst_allowed_section_rating = 3 # everyone doesn't hate their section
 # each mentor doesn't hate their section
 for m in range(len(mentors)):
-  model += xsum(teaching_section[m][t] * mentors[m]["times"][all_times[t]] for t in range(len(all_times))) <= worst_allowed_section_rating
+  model += section_rating_for_mentor(m) <= worst_allowed_section_rating
 
 def deviation_from_average_sections(time_index):
   return ilp_abs(
@@ -63,9 +69,22 @@ def deviation_from_average_sections(time_index):
     model
   )
 
-model.objective = minimize(xsum(
+average_mentor_rating = xsum(
+  section_rating_for_mentor(m)
+  for m in range(len(mentors))
+) / len(mentors)
+
+# 0 = bad, 3 = great
+average_mentor_rating_goodness = 4 - average_mentor_rating
+
+average_section_deviation = xsum(
   deviation_from_average_sections(t) for t in range(len(all_times))
-))
+) / len(mentors)
+
+# section spread is way more important than average happiness
+model.objective = maximize(
+  average_mentor_rating_goodness - 1000 * average_section_deviation
+)
 
 status = model.optimize()
 if model.num_solutions > 0:
@@ -78,7 +97,7 @@ if model.num_solutions > 0:
     for time_index in range(len(all_times)):
       if teaching_section[m][time_index].x >= 0.99:
         section = all_times[time_index]
-    print("{} - {}".format(mentors[m]["name"], section))
+    print("{} - {} (section rating: {})".format(mentors[m]["name"], section, mentors[m]["times"][section]))
   
   for t in range(len(all_times)):
     print(all_times[t] + ": " + ", ".join([ mentors[m]["name"] for m in range(len(mentors)) if teaching_section[m][t].x == 1.0 ]))
