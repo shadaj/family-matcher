@@ -1,13 +1,7 @@
 import csv
 
 from mip import Model, xsum, minimize, maximize, BINARY, INTEGER, CONTINUOUS
-
-def ilp_abs(variable, type, model):
-  x = model.add_var(var_type=type)
-  model += x >= variable
-  model += x >= -variable
-  model += (x + variable == 0) + (x - variable == 0) >= 1
-  return x
+from util import ilp_abs
 
 in_data = open("data.csv")
 reader = csv.DictReader(in_data)
