@@ -1,7 +1,7 @@
 import csv
 
 from mip import Model, xsum, minimize, maximize, BINARY, INTEGER, CONTINUOUS
-from util import binary_and
+from util import binary_and, ilp_abs
 
 in_data = open("data.csv")
 reader = csv.DictReader(in_data)
@@ -20,6 +20,7 @@ for row in reader:
       junior_mentors.append({
         "email": row["Berkeley Email"],
         "name": row["Name"],
+        "social": int(row["How social would you like your family to be? (JM)"]),
         "times": times
       })
 
@@ -33,6 +34,7 @@ for row in reader:
       sm_dictionary = {
         "email": row["Berkeley Email"],
         "name": row["Name"],
+        "social": int(row["How social would you like your family to be? (SM)"]),
         "times": times
       }
 
@@ -150,9 +152,25 @@ average_senior_mentor_rating = xsum(
 # 0 = bad, 3 = great
 average_senior_mentor_rating_goodness = 4 - average_senior_mentor_rating
 
+# across all JMs
+average_socialness_deviation = xsum(
+  xsum(
+    ilp_abs(
+      jm_in_pair[jm_i][sm_pair_i] * junior_mentors[jm_i]["social"]
+      - sum(sm["social"] for sm in sm_pairs[sm_pair_i]) / len(sm_pairs[sm_pair_i]),
+      CONTINUOUS,
+      model
+    )
+    for jm_i in range(len(junior_mentors))
+  ) 
+  for sm_pair_i in range(len(sm_pairs))
+) / len(junior_mentors)
+
 # top priority: jm happiness and sm happiness
+# then, make socialness match
 model.objective = maximize(
-  average_junior_mentor_rating_goodness + average_senior_mentor_rating_goodness
+  1000 * (average_junior_mentor_rating_goodness + average_senior_mentor_rating_goodness)
+  - average_socialness_deviation
 )
 
 status = model.optimize()
@@ -172,5 +190,5 @@ if model.num_solutions > 0:
 
     print()
     print(time)
-    print(", ".join(["{} (time rating: {})".format(sm["name"], sm["times"][time]) for sm in sm_pairs[sm_i]]))
-    print(", ".join(["{} (time rating: {})".format(jm["name"], jm["times"][time]) for jm in jms]))
+    print(", ".join(["{} (time: {}, social: {})".format(sm["name"], sm["times"][time], sm["social"]) for sm in sm_pairs[sm_i]]))
+    print(", ".join(["{} (time: {}, social: {})".format(jm["name"], jm["times"][time], jm["social"]) for jm in jms]))
