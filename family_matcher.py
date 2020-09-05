@@ -157,7 +157,7 @@ average_socialness_deviation = xsum(
   xsum(
     ilp_abs(
       jm_in_pair[jm_i][sm_pair_i] * junior_mentors[jm_i]["social"]
-      - sum(sm["social"] for sm in sm_pairs[sm_pair_i]) / len(sm_pairs[sm_pair_i]),
+      - float(sum(sm["social"] for sm in sm_pairs[sm_pair_i])) / len(sm_pairs[sm_pair_i]),
       CONTINUOUS,
       model
     )

@@ -13,28 +13,52 @@ senior_mentors = 0
 mentors = []
 all_times = []
 
+mode = "70"
+
 for row in reader:
-  if row["Which course are you accepting for? (JM)"] == "CS 70" or row["Which course are you accepting for? (AM)"] == "CS 70" or row["For which course are you a senior mentor?"] == "CS 70":
-    if row["Which course are you accepting for? (JM)"] == "CS 70":
-      junior_mentors += 1
-    elif row["Which course are you accepting for? (AM)"] == "CS 70":
-      associate_mentors += 1
-    elif row["For which course are you a senior mentor?"] == "CS 70":
-      senior_mentors += 1
+  if mode == "61b-family":
+    if row["Which course are you accepting for? (JM)"] == "CS 61b":
+      if row["Which course are you accepting for? (JM)"] == "CS 61b":
+        junior_mentors += 1
 
-    times = {}
-    mentors.append({
-      "email": row["Berkeley Email"],
-      "name": row["Name"],
-      "times": times
-    })
+      times = {}
+      mentors.append({
+        "email": row["Berkeley Email"],
+        "name": row["Name"],
+        "times": times
+      })
 
-    for key in row.keys():
-      if key.startswith("Select the times you would like to hold section (times in PDT)"):
-        extracted_time = key[len("Select the times you would like to hold section (times in PDT) ["):-1]
-        if not extracted_time in all_times:
-          all_times.append(extracted_time)
-        times[extracted_time] = int(row[key])
+      for key in row.keys():
+        if key.startswith("Please mark your family meeting availability (61B)"):
+          extracted_time = key[len("Please mark your family meeting availability (61B) ["):-1]
+          if not extracted_time in all_times:
+            all_times.append(extracted_time)
+          times[extracted_time] = int(row[key])
+  elif mode == "70":
+    if row["Which course are you accepting for? (JM)"] == "CS 70" or row["Which course are you accepting for? (AM)"] == "CS 70" or row["For which course are you a senior mentor?"] == "CS 70":
+      if row["Which course are you accepting for? (JM)"] == "CS 70":
+        junior_mentors += 1
+      elif row["Which course are you accepting for? (AM)"] == "CS 70":
+        associate_mentors += 1
+      elif row["For which course are you a senior mentor?"] == "CS 70":
+        senior_mentors += 1
+
+      times = {}
+      mentors.append({
+        "email": row["Berkeley Email"],
+        "name": row["Name"],
+        "times": times
+      })
+
+      for key in row.keys():
+        if key.startswith("Select the times you would like to hold section (times in PDT)"):
+          extracted_time = key[len("Select the times you would like to hold section (times in PDT) ["):-1]
+          if not extracted_time in all_times:
+            all_times.append(extracted_time)
+          times[extracted_time] = int(row[key])
+
+if mode == "61b-family":
+  all_times.append("Monday 	11:00 AM PDT") # two families at same side
 
 average_sections = float(len(mentors)) / len(all_times)
 
@@ -51,7 +75,7 @@ def section_rating_for_mentor(m):
     for t in range(len(all_times))
   )
 
-worst_allowed_section_rating = 3 # everyone doesn't hate their section
+worst_allowed_section_rating = 4 # everyone doesn't hate their section
 # each mentor doesn't hate their section
 for m in range(len(mentors)):
   model += section_rating_for_mentor(m) <= worst_allowed_section_rating
