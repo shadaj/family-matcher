@@ -120,3 +120,22 @@ if model.num_solutions > 0:
   
   for t in range(len(all_times)):
     print(all_times[t] + ": " + ", ".join([ mentors[m]["name"] for m in range(len(mentors)) if teaching_section[m][t].x == 1.0 ]))
+
+  print("------------------------")
+
+  for m in range(len(mentors)):
+    section = None
+    for time_index in range(len(all_times)):
+      if teaching_section[m][time_index].x >= 0.99:
+        section = all_times[time_index]
+    
+    times = []
+    if mode == "70":
+      time = section.split()[3].replace("AM", ":00 AM").replace("PM", ":00 PM")
+      if section.startswith("Tue / Thurs"):
+        times.append("Tuesday [{}]".format(time))
+        times.append("Thursday [{}]".format(time))
+      else:
+        times.append("Monday [{}]".format(time))
+        times.append("Wednesday [{}]".format(time))
+    print(";".join([mentors[m]["email"], *times]))
