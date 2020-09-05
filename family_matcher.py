@@ -15,7 +15,7 @@ all_times = []
 for row in reader:
   if row["Which course are you accepting for? (JM)"] == "CS 70" or row["For which course are you a senior mentor?"] == "CS 70":
     times = {}
-    
+
     if row["Which course are you accepting for? (JM)"] == "CS 70":
       junior_mentors.append({
         "email": row["Berkeley Email"],
@@ -162,7 +162,7 @@ average_socialness_deviation = xsum(
       model
     )
     for jm_i in range(len(junior_mentors))
-  ) 
+  )
   for sm_pair_i in range(len(sm_pairs))
 ) / len(junior_mentors)
 
@@ -182,7 +182,7 @@ if model.num_solutions > 0:
     for jm_i in range(len(junior_mentors)):
       if jm_in_pair[jm_i][sm_i].x >= 0.99:
         jms.append(junior_mentors[jm_i])
-    
+
     time = None
     for time_i in range(len(all_times)):
       if pair_at_time[sm_i][time_i].x >= 0.99:
@@ -192,3 +192,24 @@ if model.num_solutions > 0:
     print(time)
     print(", ".join(["{} (time: {}, social: {})".format(sm["name"], sm["times"][time], sm["social"]) for sm in sm_pairs[sm_i]]))
     print(", ".join(["{} (time: {}, social: {})".format(jm["name"], jm["times"][time], jm["social"]) for jm in jms]))
+
+  print("------------------------")
+
+  for sm_i in range(len(sm_pairs)):
+    jms = []
+    for jm_i in range(len(junior_mentors)):
+      if jm_in_pair[jm_i][sm_i].x >= 0.99:
+        jms.append(junior_mentors[jm_i])
+
+    time = None
+    for time_i in range(len(all_times)):
+      if pair_at_time[sm_i][time_i].x >= 0.99:
+        time = all_times[time_i]
+
+    family_name = "/".join(sm["name"] for sm in sm_pairs[sm_i])
+    meeting_day = time.split()[0]
+    meeting_time = time.split()[1]
+    sm_names = [sm["name"] for sm in sm_pairs[sm_i]]
+    jm_names = [jm["name"] for jm in jms]
+
+    print(";".join([family_name, meeting_day, meeting_time, *sm_names, *jm_names]))
