@@ -213,3 +213,7 @@ if model.num_solutions > 0:
     jm_names = [jm["name"] for jm in jms]
 
     print(";".join([family_name, meeting_day, meeting_time, *sm_names, *jm_names]))
+
+
+for jm in junior_mentors:
+  print(jm["email"])

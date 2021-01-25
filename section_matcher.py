@@ -40,6 +40,7 @@ for row in reader:
         if row["Which course are you accepting for? (JM)"] == "CS 70":
           junior_mentors += 1
         elif row["Which course are you accepting for? (AM)"] == "CS 70":
+          print(row["Berkeley Email"])
           associate_mentors += 1
         elif row["For which course are you a senior mentor?"] == "CS 70":
           senior_mentors += 1
