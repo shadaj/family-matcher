@@ -20,8 +20,7 @@ mode = "70"
 for row in reader:
   if mode == "61b-family":
     if row["Which course are you accepting for? (JM)"] == "CS 61b":
-      if row["Which course are you accepting for? (JM)"] == "CS 61b":
-        junior_mentors += 1
+      junior_mentors += 1
 
       times = {}
       mentors.append({

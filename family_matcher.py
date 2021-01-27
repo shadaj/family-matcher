@@ -10,17 +10,20 @@ reader = csv.DictReader(in_data)
 junior_mentors = []
 senior_mentors = []
 all_times = []
+all_themes = []
 
 for row in reader:
   if row["Which course are you accepting for? (JM)"] == "CS 70" or row["For which course are you a senior mentor?"] == "CS 70":
     times = {}
+    themes = {}
 
     if row["Which course are you accepting for? (JM)"] == "CS 70":
       junior_mentors.append({
         "email": row["Berkeley Email"],
         "name": row["Name"],
         "social": int(row["[70] How social would you like your family to be? (JM)"]),
-        "times": times
+        "times": times,
+        "themes": themes
       })
 
       for key in row.keys():
@@ -29,12 +32,20 @@ for row in reader:
           if not extracted_time in all_times:
             all_times.append(extracted_time)
           times[extracted_time] = int(row[key])
+
+      for key in row.keys():
+        if key.startswith("[70] Please mark your interest in task force themes (JM)"):
+          extracted_theme = key[len("[70] Please mark your interest in task force themes (JM) ["):-1]
+          if not extracted_theme in all_themes:
+            all_themes.append(extracted_theme)
+          themes[extracted_theme] = int(row[key])
     elif row["For which course are you a senior mentor?"] == "CS 70":
       sm_dictionary = {
         "email": row["Berkeley Email"],
         "name": row["Name"],
         "social": int(row["[70] How social would you like your family to be? (SM)"]),
-        "times": times
+        "times": times,
+        "themes": themes
       }
 
       senior_mentors.append(sm_dictionary)
@@ -45,6 +56,13 @@ for row in reader:
           if not extracted_time in all_times:
             all_times.append(extracted_time)
           times[extracted_time] = int(row[key])
+
+      for key in row.keys():
+        if key.startswith("[70] Please mark your interest in task force themes (SM)"):
+          extracted_theme = key[len("[70] Please mark your interest in task force themes (SM) ["):-1]
+          if not extracted_theme in all_themes:
+            all_themes.append(extracted_theme)
+          themes[extracted_theme] = int(row[key])
 
 print(junior_mentors)
 print(senior_mentors)
@@ -125,6 +143,15 @@ for family_i in range(number_of_families):
     for sm_i in range(len(senior_mentors))
   ) <= sms_per_family
 
+## Requests
+def add_sm_jm_request(sm_name, jm_name, model):
+  for family_i in range(number_of_families):
+    sm_i = [i for i in range(len(senior_mentors)) if senior_mentors[i]["name"] == sm_name][0]
+    jm_i = [i for i in range(len(junior_mentors)) if junior_mentors[i]["name"] == jm_name][0]
+    model += sm_in_family[sm_i][family_i] == jm_in_family[jm_i][family_i]
+
+add_sm_jm_request("Rosalie Fang", "Xinling (Shirley) Yu", model)
+
 ### Optimizing
 def section_rating_for_mentor(mentor, get_at_time):
   return xsum(
@@ -154,6 +181,20 @@ for jm_i in range(len(junior_mentors)):
     lambda time_i: jm_at_time[jm_i][time_i]
   ) <= worst_allowed_time_rating_jm
 
+average_jms_per_family = float(len(junior_mentors)) / number_of_families
+
+average_section_size_deviation = xsum(
+  ilp_abs(
+    xsum(
+      jm_in_family[jm_i][sm_pair_i]
+      for jm_i in range(len(junior_mentors))
+    ) - average_jms_per_family,
+    CONTINUOUS,
+    model
+  )
+  for sm_pair_i in range(number_of_families)
+) / number_of_families
+
 average_junior_mentor_rating = xsum(
   section_rating_for_mentor(
     junior_mentors[jm_i],
@@ -181,9 +222,16 @@ average_senior_mentor_rating_goodness = 4 - average_senior_mentor_rating
 def average_sm_social_score(family_i):
   return xsum(sm_in_family[sm_i][family_i] * senior_mentors[sm_i]["social"] for sm_i in range(len(senior_mentors))) / sms_per_family
 
+def average_sm_theme_score(family_i, theme):
+  return xsum(sm_in_family[sm_i][family_i] * senior_mentors[sm_i]["themes"][theme] for sm_i in range(len(senior_mentors))) / sms_per_family
+
 # across all JMs
 average_socialness_deviation_jm = xsum(
   xsum(
+    # for every person who is not in the current family, this will just add an
+    # average_sm_social_score(sm_pair_i) term to the final sum; however, this
+    # is okay because every JM is not in a constant number of families so
+    # the coefficients on these terms will be constant
     ilp_abs(
       jm_in_family[jm_i][sm_pair_i] * junior_mentors[jm_i]["social"]
       - average_sm_social_score(sm_pair_i),
@@ -191,9 +239,31 @@ average_socialness_deviation_jm = xsum(
       model
     )
     for jm_i in range(len(junior_mentors))
+  ) - (
+    # (approximately) cancel out the extra terms from JMs not in families
+    average_sm_social_score(sm_pair_i) * (len(junior_mentors) - average_jms_per_family)
   )
   for sm_pair_i in range(number_of_families)
 ) / len(junior_mentors)
+
+average_theme_deviation_jm = xsum(
+  xsum(
+    xsum(
+      ilp_abs(
+        jm_in_family[jm_i][sm_pair_i] * junior_mentors[jm_i]["themes"][theme]
+        - average_sm_theme_score(sm_pair_i, theme),
+        CONTINUOUS,
+        model
+      )
+      for jm_i in range(len(junior_mentors))
+    ) - (
+      # (approximately) cancel out the extra terms from JMs not in families
+      average_sm_theme_score(sm_pair_i, theme) * (len(junior_mentors) - average_jms_per_family)
+    )
+    for sm_pair_i in range(number_of_families)
+  ) / len(junior_mentors)
+  for theme in all_themes
+) / len(all_themes)
 
 # across all SMs
 average_socialness_deviation_sm = xsum(
@@ -205,18 +275,48 @@ average_socialness_deviation_sm = xsum(
       model
     )
     for sm_i in range(len(senior_mentors))
+  ) - (
+    # (approximately) cancel out the extra terms from SMs not in families
+    average_sm_social_score(sm_pair_i) * (len(senior_mentors) - sms_per_family)
   )
   for sm_pair_i in range(number_of_families)
 ) / len(senior_mentors)
 
-# top priority: jm happiness and sm happiness
+average_theme_deviation_sm = xsum(
+  xsum(
+    xsum(
+      ilp_abs(
+        sm_in_family[sm_i][sm_pair_i] * senior_mentors[sm_i]["themes"][theme]
+        - average_sm_theme_score(sm_pair_i, theme),
+        CONTINUOUS,
+        model
+      )
+      for sm_i in range(len(senior_mentors))
+    ) - (
+      # (approximately) cancel out the extra terms from SMs not in families
+      average_sm_theme_score(sm_pair_i, theme) * (len(senior_mentors) - sms_per_family)
+    )
+    for sm_pair_i in range(number_of_families)
+  ) / len(senior_mentors)
+  for theme in all_themes
+) / len(all_themes)
+
+# top priority: jm/sm timing happiness
+# then, make sections even
 # then, make socialness match
+# then, make themes match
 model.objective = maximize(
-  10 * (average_junior_mentor_rating_goodness + average_senior_mentor_rating_goodness)
-  - 5 * average_socialness_deviation_jm - 5 * average_socialness_deviation_sm
+  20 * ((average_junior_mentor_rating_goodness + average_senior_mentor_rating_goodness) / 2)
+  - 15 * average_section_size_deviation
+  - 10 * average_socialness_deviation_jm - 10 * average_socialness_deviation_sm
+  - 5 * average_theme_deviation_jm - 5 * average_theme_deviation_sm
 )
 
-status = model.optimize()
+status = model.optimize(max_seconds=120)
+
+def sort_themes(person):
+  return list(map(lambda t: t[0], sorted(all_themes, key=lambda t: person["themes"][t])))
+
 if model.num_solutions > 0:
   print("Junior Mentors: {}".format(len(junior_mentors)))
   print("Senior Mentor Pairs: {}".format(number_of_families))
@@ -238,8 +338,8 @@ if model.num_solutions > 0:
 
     print()
     print(time)
-    print(", ".join(["{} (time: {}, social: {})".format(sm["name"], sm["times"][time], sm["social"]) for sm in sms]))
-    print(", ".join(["{} (time: {}, social: {})".format(jm["name"], jm["times"][time], jm["social"]) for jm in jms]))
+    print(", ".join(["{} (time: {}, social: {}, themes: {})".format(sm["name"], sm["times"][time], sm["social"], "".join(sort_themes(sm))) for sm in sms]))
+    print(", ".join(["{} (time: {}, social: {}, themes: {})".format(jm["name"], jm["times"][time], jm["social"], "".join(sort_themes(jm))) for jm in jms]))
 
   print("------------------------")
 
@@ -266,3 +366,5 @@ if model.num_solutions > 0:
     jm_names = [jm["name"] for jm in jms]
 
     print(";".join([family_name, meeting_day, meeting_time, *sm_names, *jm_names]))
+
+print(sorted(list(map(lambda jm: jm["name"], junior_mentors))))
