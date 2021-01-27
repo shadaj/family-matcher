@@ -13,6 +13,8 @@ senior_mentors = 0
 mentors = []
 all_times = []
 
+not_teaching = [] # names of people who aren't teaching
+
 mode = "70"
 
 for row in reader:
@@ -35,12 +37,11 @@ for row in reader:
             all_times.append(extracted_time)
           times[extracted_time] = int(row[key])
   elif mode == "70":
-    if (row["Name"] != "Angela Jiang"): # Angela isn't teaching
+    if (not row["Name"] in not_teaching):
       if row["Which course are you accepting for? (JM)"] == "CS 70" or row["Which course are you accepting for? (AM)"] == "CS 70" or row["For which course are you a senior mentor?"] == "CS 70":
         if row["Which course are you accepting for? (JM)"] == "CS 70":
           junior_mentors += 1
         elif row["Which course are you accepting for? (AM)"] == "CS 70":
-          print(row["Berkeley Email"])
           associate_mentors += 1
         elif row["For which course are you a senior mentor?"] == "CS 70":
           senior_mentors += 1
@@ -53,8 +54,8 @@ for row in reader:
         })
 
         for key in row.keys():
-          if key.startswith("Select the times you would like to hold section (times in PDT)"):
-            extracted_time = key[len("Select the times you would like to hold section (times in PDT) ["):-1]
+          if key.startswith("[70] Select the times you would like to hold section (times in PDT)"):
+            extracted_time = key[len("[70] Select the times you would like to hold section (times in PDT) ["):-1]
             if not extracted_time in all_times:
               all_times.append(extracted_time)
             times[extracted_time] = int(row[key])
