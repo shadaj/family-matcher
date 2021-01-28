@@ -312,7 +312,12 @@ model.objective = maximize(
   - 5 * average_theme_deviation_jm - 5 * average_theme_deviation_sm
 )
 
-status = model.optimize(max_seconds=120)
+print(len(senior_mentors))
+print(sorted(list(map(lambda jm: jm["name"], senior_mentors))))
+print(len(junior_mentors))
+print(sorted(list(map(lambda jm: jm["name"], junior_mentors))))
+
+status = model.optimize(max_seconds=7*60)
 
 def sort_themes(person):
   return list(map(lambda t: t[0], sorted(all_themes, key=lambda t: person["themes"][t])))
@@ -366,5 +371,3 @@ if model.num_solutions > 0:
     jm_names = [jm["name"] for jm in jms]
 
     print(";".join([family_name, meeting_day, meeting_time, *sm_names, *jm_names]))
-
-print(sorted(list(map(lambda jm: jm["name"], junior_mentors))))
