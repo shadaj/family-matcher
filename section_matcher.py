@@ -15,7 +15,7 @@ all_times = []
 
 not_teaching = [] # names of people who aren't teaching
 
-mode = "70"
+mode = "61c"
 
 for row in reader:
   if mode == "61b-family":
@@ -58,6 +58,43 @@ for row in reader:
             if not extracted_time in all_times:
               all_times.append(extracted_time)
             times[extracted_time] = int(row[key])
+  elif mode == "61c":
+    if (not row["Name"] in not_teaching):
+      if row["Which course are you accepting for? (JM)"] == "CS 61c" or row["Which course are you accepting for? (AM)"] == "CS 61c" or row["For which course are you a senior mentor?"] == "CS 61c":
+        if row["Which course are you accepting for? (JM)"] == "CS 61c":
+          junior_mentors += 1
+        elif row["Which course are you accepting for? (AM)"] == "CS 61c":
+          associate_mentors += 1
+        elif row["For which course are you a senior mentor?"] == "CS 61c":
+          senior_mentors += 1
+
+        times = {}
+        section_count = row["How many sections would you like to teach? (Only one section is required for CSM, 1hr a week)"]
+        if not section_count == "No Sections (must be a SM & TA/tutor on 61C course staff)":
+          mentors.append({
+            "email": row["Berkeley Email"],
+            "name": row["Name"],
+            "times": times
+          })
+
+          if section_count == "Two Sections":
+            mentors.append({
+              "email": row["Berkeley Email"],
+              "name": row["Name"] + " (second section)",
+              "times": times
+            })
+
+          for key in row.keys():
+            if key.startswith("[61C] Select the times you would like to hold section (times in PDT)"):
+              extracted_time = key[len("[61C] Select the times you would like to hold section (times in PDT) ["):-1]
+              if not extracted_time == "Other":
+                if not extracted_time in all_times:
+                  all_times.append(extracted_time)
+                if len(row[key]) == 0:
+                  times[extracted_time] = 3
+                else:
+                  selected = list(map(int, row[key].split(";")))
+                  times[extracted_time] = float(sum(selected)) / len(selected)
 
 if mode == "61b-family":
   all_times.append("Monday 	11:00 AM PDT") # two families at same side
@@ -95,7 +132,11 @@ average_mentor_rating = xsum(
 ) / len(mentors)
 
 # 0 = bad, 3 = great
-average_mentor_rating_goodness = 4 - average_mentor_rating
+max_section_score = {
+  "70": 4,
+  "61c": 5
+}[mode]
+average_mentor_rating_goodness = max_section_score - average_mentor_rating
 
 average_section_deviation = xsum(
   deviation_from_average_sections(t) for t in range(len(all_times))
@@ -134,9 +175,17 @@ if model.num_solutions > 0:
     if mode == "70":
       time = section.split()[3].replace("AM", ":00 AM").replace("PM", ":00 PM")
       if section.startswith("Tue / Thurs"):
-        times.append("Tuesday [{}]".format(time))
-        times.append("Thursday [{}]".format(time))
+        times.append("Tuesday")
+        times.append(time)
+        times.append("Thursday")
+        times.append(time)
       else:
-        times.append("Monday [{}]".format(time))
-        times.append("Wednesday [{}]".format(time))
+        times.append("Monday")
+        times.append(time)
+        times.append("Wednesday")
+        times.append(time)
+    elif mode == "61c":
+      time = section.split()[1].replace("am", ":00 AM").replace("pm", ":00 PM")
+      times.append(section.split()[0])
+      times.append(time)
     print(";".join([mentors[m]["email"], *times]))
