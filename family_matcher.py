@@ -9,7 +9,8 @@ reader = csv.DictReader(in_data)
 
 junior_mentors = []
 senior_mentors = []
-all_times = []
+all_times_sm = set()
+all_times_jm = set()
 all_themes = []
 
 for row in reader:
@@ -29,8 +30,7 @@ for row in reader:
       for key in row.keys():
         if key.startswith("[70] Please mark your family meeting availability (times in PDT) (JM)"):
           extracted_time = key[len("[70] Please mark your family meeting availability (times in PDT) (JM) ["):-1]
-          if not extracted_time in all_times:
-            all_times.append(extracted_time)
+          all_times_jm.add(extracted_time)
           times[extracted_time] = int(row[key])
 
       for key in row.keys():
@@ -53,8 +53,7 @@ for row in reader:
       for key in row.keys():
         if key.startswith("[70] Please mark your family meeting availability (times in PDT) (SM)"):
           extracted_time = key[len("[70] Please mark your family meeting availability (times in PDT) (SM) ["):-1]
-          if not extracted_time in all_times:
-            all_times.append(extracted_time)
+          all_times_sm.add(extracted_time)
           times[extracted_time] = int(row[key])
 
       for key in row.keys():
@@ -64,8 +63,11 @@ for row in reader:
             all_themes.append(extracted_theme)
           themes[extracted_theme] = int(row[key])
 
+all_times = list(all_times_sm.intersection(all_times_jm))
+
 print(junior_mentors)
 print(senior_mentors)
+print(all_times)
 
 model = Model()
 
@@ -149,8 +151,6 @@ def add_sm_jm_request(sm_name, jm_name, model):
     sm_i = [i for i in range(len(senior_mentors)) if senior_mentors[i]["name"] == sm_name][0]
     jm_i = [i for i in range(len(junior_mentors)) if junior_mentors[i]["name"] == jm_name][0]
     model += sm_in_family[sm_i][family_i] == jm_in_family[jm_i][family_i]
-
-add_sm_jm_request("Rosalie Fang", "Xinling (Shirley) Yu", model)
 
 ### Optimizing
 def section_rating_for_mentor(mentor, get_at_time):
